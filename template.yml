@@ -1,0 +1,102 @@
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  IsDev:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+  DomainName:
+    Type: String
+  AcmCertificateArn:
+    Type: String
+
+Conditions:
+  IsDev: !Equals [!Ref IsDev, "true"]
+  IsProd: !Equals [!Ref IsDev, "false"]
+
+Resources:
+  WebsiteCloudFront:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultRootObject: "index.html"
+        Enabled: true
+        Origins:
+          - Id: WebsiteOrigin
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity:
+                !Join
+                  - ""
+                  - - "origin-access-identity/cloudfront/"
+                    - !Ref CloudFrontOriginAccessIdentity
+        DefaultCacheBehavior:
+          TargetOriginId: WebsiteOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: !Ref CloudFrontCachePolicy
+        HttpVersion: http2
+        Aliases: 
+          - !If [IsDev, !Ref AWS::NoValue, !Ref DomainName]
+        ViewerCertificate:
+          !If
+            - IsDev
+            - !Ref AWS::NoValue
+            - AcmCertificateArn: !Ref AcmCertificateArn
+              MinimumProtocolVersion: TLSv1.2_2021
+              SslSupportMethod: sni-only
+        Comment: !Ref AWS::StackName
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponsePagePath: "/index.html"
+            ResponseCode: 403
+
+  CloudFrontCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        DefaultTTL: !If [IsDev, 0, 86400]
+        MaxTTL: !If [IsDev, 1, 31536000]
+        MinTTL: 0
+        Name: !Ref AWS::StackName
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: !If [IsDev, false, true]
+          EnableAcceptEncodingGzip: !If [IsDev, false, true]
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  CloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: "CloudFront Origin Access Identity"
+
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: s3:GetObject
+            Resource: !Join ["", [!GetAtt WebsiteBucket.Arn, "/*"]]
+            Principal:
+              AWS:
+                !Join
+                  - " "
+                  - - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
+                    - !Ref CloudFrontOriginAccessIdentity
