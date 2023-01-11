@@ -4,7 +4,7 @@
         <div style="color: hsl(0,0%,50%); margin-top: 20px;">Loading ...</div>
     </div>
 {:else}
-    {#if sessionId}
+    {#if username}
         <div style="text-align: center;">
             <h2>250</h2>
             <p style="color: hsl(0,0%,50%);">subscribers</p>
@@ -26,7 +26,12 @@
     import { page } from '$app/stores';
 
     let isLoading: boolean = false;
-    let sessionId: string | null;
+    let username: string | null;
+
+    interface SignInResponse {
+        message: string,
+        username: string,
+    }
 
     onMount(main);
 
@@ -37,8 +42,8 @@
         const code = $page.url.searchParams.get('code');
         goto("/", { replaceState: true });
 
-        sessionId = sessionStorage.getItem('sessionId');
-        if (sessionId) {
+        username = sessionStorage.getItem('username');
+        if (username) {
             isLoading = false;
             return;
         }
@@ -55,8 +60,29 @@
             if (codeVerifier === null) {
                 throw new Error('Unexpected code');
             }
-            sessionId = '123';
-            sessionStorage.setItem('sessionId', sessionId);
+
+            const request = await fetch('/api/sign-in', { 
+                method: 'POST', 
+                body: JSON.stringify({ 
+                    code: code, 
+                    code_verifier: codeVerifier, 
+                    redirect_uri: import.meta.env.VITE_COGNITO_REDIRECT_URI 
+                }) 
+            });
+
+            if (request.status === 403) {
+                signOut();
+                return;
+            }
+
+            let response: SignInResponse = await request.json();
+
+            if (!request.ok) {
+                throw new Error(response.message);
+            }
+
+            username = response.username;
+            sessionStorage.setItem('username', username);
         } catch (error) {
             alert(error);
         }

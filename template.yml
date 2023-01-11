@@ -15,10 +15,28 @@ Parameters:
     Type: String
   GoogleClientSecret:
     Type: String
+  CognitoClientId:
+    Type: String
+  CognitoClientSecret:
+    Type: String
+  BraintreeMerchantId:
+    Type: String
+  BraintreePublicKey:
+    Type: String
+  BraintreePrivateKey:
+    Type: String
 
 Conditions:
   IsDev: !Equals [!Ref IsDev, "true"]
   IsProd: !Equals [!Ref IsDev, "false"]
+
+Globals:
+  Function:
+    Runtime: python3.9
+    Handler: lambda_function.lambda_handler
+    MemorySize: 128
+    Architectures: ["arm64"]
+    Timeout: 10
 
 Resources:
   WebsiteCloudFront:
@@ -36,10 +54,31 @@ Resources:
                   - ""
                   - - "origin-access-identity/cloudfront/"
                     - !Ref CloudFrontOriginAccessIdentity
+          - Id: ApiOrigin
+            DomainName:
+              !Join
+                - ""
+                - - !Ref WebsiteApi
+                  - ".execute-api.us-east-1.amazonaws.com"
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
         DefaultCacheBehavior:
           TargetOriginId: WebsiteOrigin
           ViewerProtocolPolicy: redirect-to-https
           CachePolicyId: !Ref CloudFrontCachePolicy
+        CacheBehaviors:
+          - PathPattern: "/api/*"
+            TargetOriginId: ApiOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: !Ref CloudFrontCachePolicy
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - PATCH
+              - POST
+              - DELETE
         HttpVersion: http2
         Aliases: 
           - !If [IsDev, !Ref AWS::NoValue, !Ref DomainName]
@@ -171,3 +210,43 @@ Resources:
           - "IsDev"
           - !Ref AWS::NoValue
           - CertificateArn: !Ref AcmCertificateArn
+
+  WebsiteApi:
+    Type: AWS::Serverless::HttpApi
+
+  AccountsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: username
+          AttributeType: S
+      KeySchema:
+        - AttributeName: username
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: 
+        PointInTimeRecoveryEnabled: !If [IsDev, false, true]
+
+  SignInFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./api/sign-in
+      Events:
+        HttpApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WebsiteApi
+            Method: POST
+            Path: /api/sign-in
+      Environment:
+        Variables:
+          COGNITO_URL: !Join ["", ["https://", !Ref WebsiteUserPoolDomain, !If [IsDev, !Join ["", [".auth.", !Ref AWS::Region, ".amazoncognito.com"]], !Ref DomainName]]]
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          COGNITO_CLIENT_SECRET: !Ref CognitoClientSecret
+          ACCOUNTS_TABLE_NAME: !Ref AccountsTable
+          BRAINTREE_MERCHANT_ID: !Ref BraintreeMerchantId
+          BRAINTREE_PUBLIC_KEY: !Ref BraintreePublicKey
+          BRAINTREE_PRIVATE_KEY: !Ref BraintreePrivateKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccountsTable
