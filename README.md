@@ -4,7 +4,9 @@
 
 - [x] Add skeleton layout
 - [x] Add website hosting
-- [ ] Add sign in/out
+- [x] Add sign in/out
+- [ ] Add account creation on sign in
+- [ ] Add account check on page load
 
 ## Deploy
 ```

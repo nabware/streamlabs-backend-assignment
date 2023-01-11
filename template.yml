@@ -11,6 +11,10 @@ Parameters:
     Type: String
   AcmCertificateArn:
     Type: String
+  GoogleClientId:
+    Type: String
+  GoogleClientSecret:
+    Type: String
 
 Conditions:
   IsDev: !Equals [!Ref IsDev, "true"]
@@ -100,3 +104,70 @@ Resources:
                   - " "
                   - - "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity"
                     - !Ref CloudFrontOriginAccessIdentity
+
+  WebsiteUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: given_name
+          Required: true
+          Mutable: true
+        - AttributeDataType: String
+          Name: family_name
+          Required: true
+          Mutable: true
+        - AttributeDataType: String
+          Name: email
+          Required: true
+          Mutable: true
+
+  WebsiteUserPoolIdentityProviderGoogle:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      UserPoolId: !Ref WebsiteUserPool
+      ProviderType: Google
+      ProviderName: Google
+      ProviderDetails:
+        client_id: !Ref GoogleClientId
+        client_secret: !Ref GoogleClientSecret
+        authorize_scopes: "profile email openid"
+      AttributeMapping:
+        email: email
+        email_verified: email_verified
+        given_name: given_name
+        family_name: family_name
+  
+  WebsiteUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref WebsiteUserPool
+      GenerateSecret: true
+      AllowedOAuthFlows: 
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - phone
+        - email
+        - openid
+        - profile
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - !Join ["", ["https://", !If [IsDev, !GetAtt WebsiteCloudFront.DomainName, !Ref DomainName], "/"]]
+      LogoutURLs:
+        - !Join ["", ["https://", !If [IsDev, !GetAtt WebsiteCloudFront.DomainName, !Ref DomainName], "/"]]
+      SupportedIdentityProviders:
+        - "Google"
+
+  WebsiteUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref WebsiteUserPool
+      Domain: !If [IsDev, !Ref AWS::StackName, !Join ["", ["auth.", !Ref DomainName]]]
+      CustomDomainConfig:
+        !If
+          - "IsDev"
+          - !Ref AWS::NoValue
+          - CertificateArn: !Ref AcmCertificateArn
