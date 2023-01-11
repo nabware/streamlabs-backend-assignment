@@ -250,3 +250,21 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref AccountsTable
+
+  GetAccountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./api/get-account
+      Events:
+        HttpApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WebsiteApi
+            Method: POST
+            Path: /api/get-account
+      Environment:
+        Variables:
+          ACCOUNTS_TABLE_NAME: !Ref AccountsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccountsTable

@@ -6,7 +6,7 @@
 - [x] Add website hosting
 - [x] Add sign in/out
 - [x] Add account creation on sign in
-- [ ] Add subscription check on page load
+- [x] Add subscription check on page load
 - [ ] Add one month and one year subscriptions
 - [ ] Add cancel subscription
 

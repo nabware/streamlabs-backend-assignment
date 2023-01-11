@@ -7,7 +7,17 @@
     {#if username}
         <div style="text-align: center;">
             <h2>250</h2>
-            <p style="color: hsl(0,0%,50%);">subscribers</p>
+            <p style="color: hsl(0,0%,50%);">Subscribers</p>
+            {#if Math.round(Date.now() / 1000) > subscriptionPeriodEndDate}
+                <p>Subscribe to reveal additional metrics</p>
+                <a href="" class="link-button">Subscribe</a>
+                <div id="dropin-container"></div>
+            {:else}
+                <h2>Fortnite</h2>
+                <p style="color: hsl(0,0%,50%);">What potential subscribers want to watch</p>
+                <h2>6pm - 10pm</h2>
+                <p style="color: hsl(0,0%,50%);">Best time to stream</p>
+            {/if}
             <a href="" class="link-button" on:click={signOut}><i class="fa-solid fa-right-from-bracket link-button-icon" />Sign out</a>
         </div>
     {:else}
@@ -27,10 +37,18 @@
 
     let isLoading: boolean = false;
     let username: string | null;
+    let subscriptionPeriodEndDate: number;
+    let subscriptionStatus: string;
 
     interface SignInResponse {
-        message: string,
-        username: string,
+        message: string;
+        username: string;
+    }
+
+    interface GetAccountResponse {
+        message: string;
+        subscription_period_end_date: number;
+        subscription_status: string;
     }
 
     onMount(main);
@@ -44,6 +62,7 @@
 
         username = sessionStorage.getItem('username');
         if (username) {
+            await getAccount();
             isLoading = false;
             return;
         }
@@ -83,11 +102,41 @@
 
             username = response.username;
             sessionStorage.setItem('username', username);
+
         } catch (error) {
             alert(error);
         }
 
+        await getAccount();
+
         isLoading = false;
+    }
+
+    async function getAccount() {
+        try {
+            const request = await fetch('/api/get-account', { 
+                method: 'POST',
+                headers: {'Authorization': String(username)},
+            });
+
+            if (request.status === 403) {
+                signOut();
+                return;
+            }
+
+            let response: GetAccountResponse = await request.json();
+
+            if (!request.ok) {
+                throw new Error(response.message);
+            }
+
+            subscriptionPeriodEndDate = response.subscription_period_end_date;
+            subscriptionStatus = response.subscription_status;
+
+        } catch (error) {
+            alert(error);
+            signOut();
+        }
     }
 
     async function redirectToLogin() {
