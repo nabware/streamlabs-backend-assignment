@@ -8,10 +8,18 @@
         <div style="text-align: center;">
             <h2>250</h2>
             <p style="color: hsl(0,0%,50%);">Subscribers</p>
-            {#if Math.round(Date.now() / 1000) > subscriptionPeriodEndDate}
-                <p>Subscribe to reveal additional metrics</p>
-                <a href="" class="link-button">Subscribe</a>
-                <div id="dropin-container"></div>
+            
+            <!-- Should check timestamp commented out below. Checking status for dev purposes to test active/expired states. -->
+            <!-- {#if Math.round(Date.now() / 1000) > subscriptionPeriodEndTimestamp} -->
+            {#if subscriptionStatus !== "Active"}
+                <h2>Subscribe to reveal additional metrics</h2>
+                <div id="dropin-container" style="max-width: 500px; margin: auto;"></div>
+                {#if dropin_instance}
+                    <a href="" class="link-button" on:click={() => checkout(1)}>Monthly for $5</a>
+                    <a href="" class="link-button" on:click={() => checkout(12)}>Yearly for $50</a>
+                {:else}
+                    <p style="color: hsl(0,0%,50%);">Loading checkout ...</p>
+                {/if}
             {:else}
                 <h2>Fortnite</h2>
                 <p style="color: hsl(0,0%,50%);">What potential subscribers want to watch</p>
@@ -34,11 +42,13 @@
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
+    import * as dropin from 'braintree-web-drop-in';
 
     let isLoading: boolean = false;
     let username: string | null;
-    let subscriptionPeriodEndDate: number;
+    let subscriptionPeriodEndTimestamp: number;
     let subscriptionStatus: string;
+    let dropin_instance: dropin.Dropin;
 
     interface SignInResponse {
         message: string;
@@ -47,8 +57,17 @@
 
     interface GetAccountResponse {
         message: string;
-        subscription_period_end_date: number;
+        subscription_period_end_timestamp: number;
         subscription_status: string;
+    }
+
+    interface GetClientTokenResponse {
+        message: string;
+        client_token: string;
+    }
+
+    interface CheckoutResponse {
+        message: string;
     }
 
     onMount(main);
@@ -64,6 +83,7 @@
         if (username) {
             await getAccount();
             isLoading = false;
+            loadDropinInstance();
             return;
         }
 
@@ -110,6 +130,8 @@
         await getAccount();
 
         isLoading = false;
+
+        loadDropinInstance();
     }
 
     async function getAccount() {
@@ -130,12 +152,88 @@
                 throw new Error(response.message);
             }
 
-            subscriptionPeriodEndDate = response.subscription_period_end_date;
+            subscriptionPeriodEndTimestamp = response.subscription_period_end_timestamp;
             subscriptionStatus = response.subscription_status;
 
         } catch (error) {
             alert(error);
             signOut();
+        }
+       
+    }
+
+    async function loadDropinInstance() {
+        // Should check timestamp commented out below. Checking status for dev purposes to test active/expired states.
+        // if (Math.round(Date.now() / 1000) > subscriptionPeriodEndTimestamp) return;
+        if (subscriptionStatus === "Active") return;
+        dropin_instance = await dropin.create({ 
+            container: '#dropin-container',
+            authorization: String(await getClientToken()),
+            paypal: {flow: "vault"},
+        });
+    }
+
+    async function getClientToken() {
+        try {
+            const request = await fetch('/api/get-client-token', { 
+                method: 'POST',
+                headers: {'Authorization': String(username)},
+            });
+
+            if (request.status === 403) {
+                signOut();
+                return;
+            }
+
+            let response: GetClientTokenResponse = await request.json();
+
+            if (!request.ok) {
+                throw new Error(response.message);
+            }
+
+            return response.client_token;
+
+        } catch (error) {
+            alert(error);
+        }
+    }
+
+    async function checkout(months: number) {
+        let payload: dropin.PaymentMethodPayload;
+        try {
+            payload = await dropin_instance.requestPaymentMethod();
+        } catch (error) {
+            return;
+        }
+
+        isLoading = true;
+
+        try {
+            const request = await fetch('/api/checkout', { 
+                method: 'POST',
+                body: JSON.stringify({ 
+                    months: months,
+                    payment_method_nonce: payload.nonce,
+                }) 
+            });
+
+            if (request.status === 403) {
+                signOut();
+                return;
+            }
+
+            let response: CheckoutResponse = await request.json();
+
+            if (!request.ok) {
+                throw new Error(response.message);
+            }
+
+            await dropin_instance.teardown();
+            location.reload();
+
+        } catch (error) {
+            alert(error);
+            location.reload();
         }
     }
 

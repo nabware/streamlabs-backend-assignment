@@ -25,6 +25,10 @@ Parameters:
     Type: String
   BraintreePrivateKey:
     Type: String
+  OneMonthSubscriptionPlanId:
+    Type: String
+  TwelveMonthSubscriptionPlanId:
+    Type: String
 
 Conditions:
   IsDev: !Equals [!Ref IsDev, "true"]
@@ -36,7 +40,7 @@ Globals:
     Handler: lambda_function.lambda_handler
     MemorySize: 128
     Architectures: ["arm64"]
-    Timeout: 10
+    Timeout: 20 # Checkout timed out on Lambda cold start. Consider switching language to Rust for fast cold starts and overall reduced duration.
 
 Resources:
   WebsiteCloudFront:
@@ -264,6 +268,67 @@ Resources:
             Path: /api/get-account
       Environment:
         Variables:
+          ACCOUNTS_TABLE_NAME: !Ref AccountsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccountsTable
+
+  GetClientTokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./api/get-client-token
+      Events:
+        HttpApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WebsiteApi
+            Method: POST
+            Path: /api/get-client-token
+      Environment:
+        Variables:
+          BRAINTREE_MERCHANT_ID: !Ref BraintreeMerchantId
+          BRAINTREE_PUBLIC_KEY: !Ref BraintreePublicKey
+          BRAINTREE_PRIVATE_KEY: !Ref BraintreePrivateKey
+
+  CheckoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./api/checkout
+      Events:
+        HttpApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WebsiteApi
+            Method: POST
+            Path: /api/checkout
+      Environment:
+        Variables:
+          BRAINTREE_MERCHANT_ID: !Ref BraintreeMerchantId
+          BRAINTREE_PUBLIC_KEY: !Ref BraintreePublicKey
+          BRAINTREE_PRIVATE_KEY: !Ref BraintreePrivateKey
+          ONE_MONTH_SUBSCRIPTION_PLAN_ID: !Ref OneMonthSubscriptionPlanId
+          TWELVE_MONTH_SUBSCRIPTION_PLAN_ID: !Ref TwelveMonthSubscriptionPlanId
+          ACCOUNTS_TABLE_NAME: !Ref AccountsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccountsTable
+
+  OnSubscriptionChargedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./api/on-subscription-charged
+      Events:
+        HttpApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WebsiteApi
+            Method: POST
+            Path: /api/on-subscription-charged
+      Environment:
+        Variables:
+          BRAINTREE_MERCHANT_ID: !Ref BraintreeMerchantId
+          BRAINTREE_PUBLIC_KEY: !Ref BraintreePublicKey
+          BRAINTREE_PRIVATE_KEY: !Ref BraintreePrivateKey
           ACCOUNTS_TABLE_NAME: !Ref AccountsTable
       Policies:
         - DynamoDBCrudPolicy:

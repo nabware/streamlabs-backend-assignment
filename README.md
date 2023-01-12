@@ -7,7 +7,7 @@
 - [x] Add sign in/out
 - [x] Add account creation on sign in
 - [x] Add subscription check on page load
-- [ ] Add one month and one year subscriptions
+- [x] Add monthly and yearly subscriptions
 - [ ] Add cancel subscription
 
 ## Deploy

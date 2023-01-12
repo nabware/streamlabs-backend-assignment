@@ -14,11 +14,11 @@ def lambda_handler(event, context):
     )
 
     account = account_response["Item"]
-    subscription_period_end_date = account["subscription_period_end_date"] if "subscription_period_end_date" in account else 0
-    subscription_status = account["subscription_status"] if "subscription_status" in account else "expired"
+    subscription_period_end_timestamp = account["subscription_period_end_timestamp"] if "subscription_period_end_timestamp" in account else 0
+    subscription_status = account["subscription_status"] if "subscription_status" in account else ""
 
     return { 
         "message": "Success",
-        "subscription_period_end_date": subscription_period_end_date,
+        "subscription_period_end_timestamp": subscription_period_end_timestamp,
         "subscription_status": subscription_status
     }

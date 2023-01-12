@@ -26,6 +26,8 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@sveltejs/adapter-static": "^1.0.1"
+		"@sveltejs/adapter-static": "^1.0.1",
+		"@types/braintree-web-drop-in": "^1.33.0",
+		"braintree-web-drop-in": "^1.33.7"
 	}
 }
