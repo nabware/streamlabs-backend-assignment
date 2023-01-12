@@ -5,7 +5,7 @@
     </div>
 {:else}
     {#if username}
-        <div style="text-align: center;">
+        <div style="text-align: center; padding: 20px;">
             <h2>250</h2>
             <p style="color: hsl(0,0%,50%);">Subscribers</p>
             

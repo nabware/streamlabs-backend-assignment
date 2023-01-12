@@ -9,6 +9,7 @@ body {
 header {
     text-align: center;
     background: #128079;
+    padding: 20px;
 }
 
 #website-name {
