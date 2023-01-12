@@ -333,3 +333,24 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref AccountsTable
+
+  CancelSubscriptionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./api/cancel-subscription
+      Events:
+        HttpApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref WebsiteApi
+            Method: POST
+            Path: /api/cancel-subscription
+      Environment:
+        Variables:
+          BRAINTREE_MERCHANT_ID: !Ref BraintreeMerchantId
+          BRAINTREE_PUBLIC_KEY: !Ref BraintreePublicKey
+          BRAINTREE_PRIVATE_KEY: !Ref BraintreePrivateKey
+          ACCOUNTS_TABLE_NAME: !Ref AccountsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccountsTable

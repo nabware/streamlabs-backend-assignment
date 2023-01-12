@@ -25,6 +25,11 @@
                 <p style="color: hsl(0,0%,50%);">What potential subscribers want to watch</p>
                 <h2>6pm - 10pm</h2>
                 <p style="color: hsl(0,0%,50%);">Best time to stream</p>
+                <a href="" class="link-button"  on:click={cancelSubscription}>Cancel subscription</a>
+                <!-- Uncomment below when checking timestamp instead of status above. -->
+                <!-- {#if subscriptionStatus === "Canceled"}
+                    <p style="color: hsl(0,0%,50%);">Subscription ends {new Date(subscriptionPeriodEndTimestamp * 1000).toLocaleDateString()}</p>
+                {/if} -->
             {/if}
             <a href="" class="link-button" on:click={signOut}><i class="fa-solid fa-right-from-bracket link-button-icon" />Sign out</a>
         </div>
@@ -68,6 +73,11 @@
 
     interface CheckoutResponse {
         message: string;
+    }
+
+    interface CancelSubscriptionResponse {
+        message: string;
+        subscription_status: string;
     }
 
     onMount(main);
@@ -235,6 +245,35 @@
             alert(error);
             location.reload();
         }
+    }
+
+    async function cancelSubscription() {
+        isLoading = true;
+        try {
+            const request = await fetch('/api/cancel-subscription', { 
+                method: 'POST',
+                headers: {'Authorization': String(username)},
+            });
+
+            if (request.status === 403) {
+                signOut();
+                return;
+            }
+
+            let response: CancelSubscriptionResponse = await request.json();
+
+            if (!request.ok) {
+                throw new Error(response.message);
+            }
+
+            subscriptionStatus = response.subscription_status;
+            loadDropinInstance();
+
+        } catch (error) {
+            alert(error);
+        }
+
+        isLoading = false;
     }
 
     async function redirectToLogin() {

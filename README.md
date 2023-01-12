@@ -8,7 +8,7 @@
 - [x] Add account creation on sign in
 - [x] Add subscription check on page load
 - [x] Add monthly and yearly subscriptions
-- [ ] Add cancel subscription
+- [x] Add cancel subscription
 
 ## Deploy
 ```
