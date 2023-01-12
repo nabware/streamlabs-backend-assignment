@@ -73,6 +73,8 @@
 
     interface CheckoutResponse {
         message: string;
+        subscription_period_end_timestamp: number;
+        subscription_status: string;
     }
 
     interface CancelSubscriptionResponse {
@@ -238,8 +240,11 @@
                 throw new Error(response.message);
             }
 
+            subscriptionPeriodEndTimestamp = response.subscription_period_end_timestamp;
+            subscriptionStatus = response.subscription_status;
             await dropin_instance.teardown();
-            location.reload();
+
+            isLoading = false;
 
         } catch (error) {
             alert(error);

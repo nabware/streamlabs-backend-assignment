@@ -45,4 +45,6 @@ def lambda_handler(event, context):
 
     return { 
         "message": "Success",
+        "subscription_status": result.subscription.status,
+        "subscription_period_end_timestamp": period_end_timestamp,
     }
